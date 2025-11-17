@@ -1,0 +1,158 @@
+---
+title: "Bootstrapping 1: Means & Medians"
+author: "PSY 503"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## Setup
+
+```{r}
+library(ggplot2)
+library(patchwork)
+
+set.seed(123)
+n_samples <- 1000
+sample_size <- 30
+```
+
+## Part 1: Normal Population
+
+Create a normal population.
+
+```{r}
+pop_normal <- rnorm(100000, mean = 50, sd = 10)
+```
+
+**Your task:** Take 1000 samples. Calculate mean and median each time.
+
+```{r}
+means_normal <- replicate(n_samples, {
+  #Sample from pop_normal, calculate mean
+  mean(sample(pop_normal, sample_size))
+})
+
+medians_normal <- replicate(n_samples, {
+  median(sample(pop_normal, sample_size))
+  
+})
+```
+
+## Part 2: Skewed Population
+
+Create a skewed population.
+
+```{r}
+#You can play around with other distributions
+pop_skewed <- rexp(100000, rate = 0.1) + 30
+```
+
+**Your task:** Take 1000 samples. Calculate mean and median each time.
+
+```{r}
+means_skewed <- replicate(n_samples, {
+  mean(sample(pop_skewed, sample_size))
+  
+})
+
+medians_skewed <- replicate(n_samples, {
+  median(sample(pop_skewed, sample_size))
+  
+})
+```
+
+## Part 3: Visualize
+
+Plot the populations.
+
+```{r}
+p1 <- ggplot(data.frame(x = pop_normal), aes(x)) +
+  geom_histogram(bins = 50, fill = "gray70") +
+  labs(title = "Population: Normal") +
+  theme_minimal()
+
+p2 <- ggplot(data.frame(x = pop_skewed), aes(x)) +
+  geom_histogram(bins = 50, fill = "gray70") +
+  labs(title = "Population: Skewed") +
+  theme_minimal()
+```
+
+**Your task:** Create plots for sampling distributions.
+
+```{r}
+p3 <- ggplot(data.frame(x = means_normal), aes(x)) +
+  geom_histogram(bins = 50, fill = "steelblue") +
+  labs(title = "Means Normal") +
+  theme_minimal()
+
+p4 <- ggplot(data.frame(x = medians_normal), aes(x)) +
+  geom_histogram(bins = 50, fill = "steelblue") +
+  labs(title = "Medians Normal") +
+  theme_minimal()
+
+p5 <- ggplot(data.frame(x = means_skewed), aes(x)) +
+  geom_histogram(bins = 50, fill = "steelblue") +
+  labs(title = "Means Skewed") +
+  theme_minimal()
+
+p6 <- ggplot(data.frame(x = medians_skewed), aes(x)) +
+  geom_histogram(bins = 50, fill = "steelblue") +
+  labs(title = "Medians skewed") +
+  theme_minimal()
+
+# TODO_4: Add more plots for medians_normal, means_skewed, medians_skewed
+```
+
+Combine all plots.
+
+```{r}
+
+(p3 | p4 | p5 | p6 )/(p1 | p2)
+# TODO_5: Use patchwork to arrange all 6 plots to facilitate comparison
+# (p1 | p3 | ...) / (p2 | ... | ...)
+```
+
+## Questions
+
+1. Do the means plots look similar or different?
+They look similar
+
+2. Do the medians plots look similar or different?
+They still look Gaussian but they are noticeably shifted in different directions.
+
+3. Which statistic is more affected by population shape?
+
+Median should be more affected, because the shape of the Gaussian matters a lot for the median value, but not as much for the mean. 
+
+4. Calculate SD of each sampling distribution. What do you notice?
+
+```{r}
+# Here are the standard deviations for the sampling distribution
+sd(means_normal)
+sd(medians_normal)
+sd(means_skewed)
+sd(medians_skewed)
+
+##We can see from the output that the SD of the means for both distributions are very similar, but the medians are a little different. This makes sense, because the CLT implies we'll get a Gaussian distribution when we get our sampling distribution, which should have similar SDs regardless of skew, however, this does not mean we'll have standardized medians. 
+```
+
+5. Which of the above standard deviations are the result of bootstrapping?
+
+They are all the result of bootstrapping, because they 
+
+6. Calculate theoretical Standard Error for means, and compare with your results
+```{r}
+
+s_dev <- sd(pop_normal)
+n <- 30
+standard_error <- s_dev / sqrt(n)
+print(standard_error)
+
+
+#The resylts are similar between the theoretical standard error for the means and the SD for the means of the sampling distribution. 
+
+```
+
