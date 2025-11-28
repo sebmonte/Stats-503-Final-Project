@@ -211,7 +211,7 @@ p_val <- omnibus$p.value
 
 ###### A6b:
 
-A one-way ANOVA revealed a statistically significant difference across the four gr, 
+A one-way ANOVA revealed a statistically significant difference across the four groups, 
 F(`r df1`, `r df2`) = `r round(F_value, 2)`, p = `r round(p_val, 3)`.
 
 <!-- HINT: use `r ___` in the text to embed derived values where the ___ refers to the derived value -->
@@ -253,7 +253,7 @@ mod_contrasts
 
 ###### A7
 
-<!-- Your answer here -->
+Looking at the adjusted p values, only condition 1 vs. condition 2 and condition 2 vs condition 4 are significantly different from each other.This is different from what they report in the paper, where they also say that condition 2 vs 3 (reactivation plus tetris vs tetris only) is significant.
 
 #### Power and effect sizes
 
@@ -266,10 +266,10 @@ In the paper they say, *"On the basis of the effect size of d = 1.14 from Experi
 Fill in the parameter values below to obtain the right power analysis \###### A8
 
 ```{r}
-# pwr.anova.test(k = __, 
-#                f = __, 
-#                sig.level = __, 
-#                power = __)
+ pwr.anova.test(k = 4, 
+                f = .4, 
+                sig.level = .05, 
+                power = .8)
 ```
 
 We have already got the effect size for the overall ANOVA, however, we should also really calculate Cohen’s d using cohens_d() from effectsize for each of the pairwise comparisons. This code is a little long because you need to do it separately for each comparison, bind them all together and then add them to mod_contrasts - just make sure your understand which bits of the code you would need to change to run this on different data. As we are binding rows and columns rather than joining, it is critical the comparisons are already in the correct order.
