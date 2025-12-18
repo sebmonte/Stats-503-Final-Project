@@ -23,4 +23,4 @@ Steps for reproducibility
 2) Install both R and python
 3) Use project_environment.yml to install the necessary packages (note: I use a Silicon mac. This may need adjusting for other operating systems)
 4) Clone the directory, and set 'top_dir' in the scripts to the path for the directory.
-5) Set the path to your r directory in the script -> ro.r(your/path/here)
+5) Set the path to your r library in the script -> ro.r(your/path/here)
