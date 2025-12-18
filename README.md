@@ -4,12 +4,12 @@ Contents:
 
 Scripts: 
 Contains two analyses 
-1) Visualizing decoding data derived from an MEG experiment, and apply Bayesian tests to it over time + conduct a bootstrapping test
+1) Visualizing decoding data derived from an MEG experiment, and apply Bayesian tests to it over time + conduct a bootstrapping test.
 2) Visualize decoding data using a temporal generalization matrix, and apply Bayesian tests to the matrix.
 
 Data:
 All of the relevant data for the experiment. S0X_DecodingAccuracyTimecourse has the per participant decoding scores,
-S0Xtraintime_data contains the scores for the temporal generalization matrix
+S0Xtraintime_data contains the scores for the temporal generalization matrix,
 BF_matrix contains the saved BF score data across the temporal generalization matrix
 
 Environment:
