@@ -1,4 +1,4 @@
-Repository for my final projec in Stats-503
+Repository for my final project in Stats-503
 
 Contents:
 
