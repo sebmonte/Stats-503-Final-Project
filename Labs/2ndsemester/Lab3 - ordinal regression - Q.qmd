@@ -120,6 +120,29 @@ ratings <- ratings_latent %>%
 ### Question 1.1: Visualize the latent distribution {.unnumbered}
 
 Create a density plot of the latent scores with vertical dashed lines for Psychology's thresholds ($\tau_1 = -1$, $\tau_2 = 0$, $\tau_3 = 1$). Label the four regions (Poor, Fair, Good, Excellent) on the plot.
+```{r}
+ggplot(ratings, aes(x = latent)) +
+  geom_density(fill = "steelblue", alpha = 0.4, linewidth = 1) +
+  
+  # Thresholds
+  geom_vline(xintercept = tau_psych, 
+             linetype = "dashed", 
+             linewidth = 1) +
+  
+  # Labels
+  annotate("text", x = -1.8, y = 0.35, label = "Poor", size = 5) +
+  annotate("text", x = -0.5, y = 0.35, label = "Fair", size = 5) +
+  annotate("text", x = 0.5, y = 0.35, label = "Good", size = 5) +
+  annotate("text", x = 1.8, y = 0.35, label = "Excellent", size = 5) +
+  
+  labs(
+    title = "Latent Teaching Effectiveness Distribution",
+    subtitle = "Thresholds (-1, 0, 1)",
+    x = "Latent Effectiveness",
+    y = "Density"
+  ) +
+  theme_minimal(base_size = 14)
+```
 
 ::: {.callout-tip collapse="true" title="Hint: Key geoms"}
 `geom_density()` for the curve, `geom_vline(xintercept = ...)` for the thresholds (use `linetype = "dashed"`), and `annotate("text", x = ..., y = ..., label = ...)` to place category labels in each region. You'll need one `annotate()` call per label.
@@ -129,7 +152,35 @@ Create a density plot of the latent scores with vertical dashed lines for Psycho
 
 Create side-by-side stacked bar charts showing the observed rating distributions for Psychology and CS.
 
-The instructors didn't change, so what did? What does this tell you about what thresholds control?
+```{r}
+ratings_long <- ratings %>%
+  dplyr::select(eval_psych, eval_cs) %>%
+  tidyr::pivot_longer(
+    cols = everything(),
+    names_to = "department",
+    values_to = "rating"
+  ) %>%
+  dplyr::mutate(
+    department = dplyr::recode(department,
+                               eval_psych = "Psychology",
+                               eval_cs = "Computer Science")
+  )
+
+# Plot 
+ggplot(ratings_long, aes(x = department, fill = rating)) +
+  geom_bar(position = "stack") +
+  scale_fill_brewer(palette = "Blues") +
+  labs(
+    title = "Observed Rating Distributions by Department",
+    x = "Department",
+    y = "Number of Ratings",
+    fill = "Rating"
+  ) +
+  theme_minimal(base_size = 14)
+
+```
+
+The instructors didn't change, so what did? What does this tell you about what thresholds control? Thresholds control the total number of items in each category by having looser or more stringent requirements, in this case, CS is a lot more flexible for what ratings woudl constitute 'excellent'
 
 ::: {.callout-tip collapse="true" title="Hint: Data wrangling"}
 First, create a frequency table for each department using `count()`, rename the rating column to a shared name like `category`, and add a `dept` label column. Then `bind_rows()` them together. Compute proportions with `mutate(prop = n / sum(n))` grouped by department. Plot with `geom_col(position = "stack")` mapping `x = dept`, `y = prop`, and `fill = category`.
@@ -139,7 +190,15 @@ First, create a frequency table for each department using `count()`, rename the 
 
 The thresholds $\tau_1 = -1$, $\tau_2 = 0$, $\tau_3 = 1$ are on the latent "teaching effectiveness" scale — the continuous axis you generated but would never observe in real data. The model re-expresses these same cut points as **log-cumulative-odds** — a transformation of the latent scale that makes the math linear. Convert between them:
 
-a)  Convert the Psychology Dept thresholds to cumulative probabilities using `plogis()`. What does each value mean?
+```{r}
+tau_psych <- c(-1, 0, 1)
+
+cum_probs <- plogis(tau_psych)
+
+cum_probs
+```
+
+a)  Convert the Psychology Dept thresholds to cumulative probabilities using `plogis()`. What does each value mean? It's the cumulative probability of falling into the categories, with the later being inclusive of the previous.
 
 ::: {.callout-tip collapse="true" title="Hint: What does plogis() do?"}
 `plogis()` is the inverse logit. It converts log-cumulative-odds back to a probability: $\text{plogis}(\tau) = \frac{e^\tau}{1 + e^\tau} = P(Y \leq k)$
@@ -152,15 +211,16 @@ b)  Suppose you want a rating distribution where 10% are Poor, 30% Fair, 40% Goo
 
 # (a) Thresholds to cumulative probabilities
 thresholds <- c(-1.0, 0.0, 1.0)
-cumul_probs <- plogis(___)
+cumul_probs <- plogis(thresholds)
 
 # Then get category-specific probabilities
-cat_probs <- diff(c(0, ___, 1))
+cat_probs <- diff(c(0, .5, 1))
 
 # (b) Desired split to thresholds
 desired_split <- c(0.10, 0.30, 0.40, 0.20)
-cumul_desired <- cumsum(desired_split[___])  # which elements?
-needed_thresholds <- qlogis(___)
+cumul_desired <- cumsum(desired_split[1:3])  # which elements?
+needed_thresholds <- qlogis(cumul_desired)
+print(needed_thresholds)
 ```
 
 ## Expected output
@@ -190,13 +250,13 @@ Display the result as a table using `kable()`.
 #| eval: false
 
 hand_calc <- ratings %>%
-  count(___) %>%
+  count(eval_psych) %>%
   rename(category = eval_psych) %>%
   mutate(
-    proportion     = n / ___,
-    cumul_proportion = ___(proportion),
-    cumul_odds       = cumul_proportion / (1 - ___),
-    log_cumul_odds   = ___(cumul_odds)
+    proportion     = n / sum(n),
+    cumul_proportion = cumsum(proportion),
+    cumul_odds       = cumul_proportion / (1 - cumul_proportion),
+    log_cumul_odds   = log(cumul_odds)
   )
 
 hand_calc %>% kable(digits = 3)
@@ -215,8 +275,14 @@ The last category (Excellent) will be `Inf`. This is because $P(Y \leq \text{Exc
 
 Fit an intercept-only ordinal model on the Psychology Dept data: `clm(eval_psych ~ 1, data = ratings)`.
 
-Compare the model's threshold estimates to your hand-calculated log-cumulative-odds. How do they compare, and what does this tell you about what the model is doing?
+```{r}
+#| eval: false
+model <- clm(eval_psych ~ 1, data = ratings)
+coef(model)
+```
 
+Compare the model's threshold estimates to your hand-calculated log-cumulative-odds. How do they compare, and what does this tell you about what the model is doing?
+They look very similar, so this suggests that the intercept model is estimating the log cumulative odds under the hood
 ### Question 2.3: Cumulative probability plot {.unnumbered}
 
 Run the code below. It visualizes the numbers you computed in Exercise 2.1, with gray bars showing cumulative probabilities and blue segments showing category-specific probabilities.
@@ -255,7 +321,7 @@ ggplot(freq_table) +
 
 Answer these questions:
 
-What do the gray bar and blue segment for "Fair" represent? Write them as probability statements.
+What do the gray bar and blue segment for "Fair" represent? Write them as probability statements.The grey bar represents that there's a 30% probability that professors will be in fair or any lower category, whereas there's a 26% chance they'll be in fair itself.
 
 ------------------------------------------------------------------------
 
@@ -263,11 +329,11 @@ What do the gray bar and blue segment for "Fair" represent? Write them as probab
 
 ### Question 3.1 {.unnumbered}
 
-How does the **cumulative logit** link function differ from the ordinary logit link used in binary logistic regression?
+How does the **cumulative logit** link function differ from the ordinary logit link used in binary logistic regression? Binary logistic regression logit link functions model the odds of one event with two outcomes, whereas the cumulative logit function allows for a comparison of the odds of being at or below every threshold. 
 
 The cumulative logit is: $\log\frac{P(Y \leq k)}{P(Y > k)}$
 
-For an outcome with $K$ categories, how many equations does this produce? Answer in 2--3 sentences.
+For an outcome with $K$ categories, how many equations does this produce? K-1 categories, as you don't model the final probability as cumulatively it will be 1.
 
 ### Question 3.2: Why not just use linear regression (aka metric models)? {.unnumbered}
 
@@ -275,7 +341,23 @@ Linear regression, ANOVA, and t-tests are all metric models. Metric models assum
 
 Using the simulation data, code Psychology Dept ratings as numbers: Poor = 1, Fair = 2, Good = 3, Excellent = 4. Fit `lm(rating_numeric ~ effectiveness)`. Then recode as Poor = 1, Fair = 2, Good = 3, Excellent = 10. Fit the model again.
 
-Report both slopes. In one sentence, explain why they differ and what this reveals about metric models.
+
+```{r}
+ratings <- ratings %>%
+  mutate(
+    rating_numeric_1to4 = as.integer(eval_psych),
+    rating_numeric_custom = ifelse(eval_psych == "Excellent", 10, as.integer(eval_psych))
+  )
+
+# Fit linear models
+lm1 <- lm(rating_numeric_1to4 ~ effectiveness, data = ratings)
+lm2 <- lm(rating_numeric_custom ~ effectiveness, data = ratings)
+
+summary(lm1)
+summary(lm2)
+```
+
+Report both slopes. In one sentence, explain why they differ and what this reveals about metric models. We get .45 and 1.7 for the 1-4 and 1-10 coding respectively. What this tells us is that metric models can inflate the slope depending on how you carve up the categories: if excellent is coded as 10, it looks like you have a greater slope.
 
 ------------------------------------------------------------------------
 
