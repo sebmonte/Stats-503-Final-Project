@@ -377,6 +377,17 @@ gbbo <- read_csv("https://raw.githubusercontent.com/suyoghc/PSY-504_Spring-2025/
 ### Exercise 4.1: Prepare the data {.unnumbered}
 
 Filter to only top 3 ranks. Convert `Rank` to an ordered factor (1 = best, so think about the ordering). Convert `Gender` to a factor.
+```{r}
+data_clean <- gbbo %>%
+  # Keep only top 3 ranks
+  rename(rank = `Technical Rank`) %>%
+  filter(`rank` <= 3) %>%
+  mutate(Rank = factor(`rank`,
+                       levels = c(1, 2, 3),
+                       ordered = TRUE),
+         Gender = factor(Gender))
+```
+#Oops, I see this was done for me already. I'll leave it here above anyway.
 
 ::: {.callout-tip collapse="true" title="Hint: Factor ordering"}
 The column is called `Technical Rank` (with a space), so rename it first with `rename(Rank = \`Technical Rank\`)\`.
@@ -406,6 +417,35 @@ Create two visualizations:
 a)  A bar chart showing the proportion of bakers in each rank by Gender.
 b)  A bar chart showing the proportion of bakers in each rank by Age (bin Age into groups using `cut()`).
 
+
+```{r}
+ggplot(data_clean, aes(x = Gender, fill = Rank)) +
+  geom_bar(position = "fill") +   # proportions
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(
+    title = "Proportion of Bakers by Rank and Gender",
+    x = "Gender",
+    y = "Proportion",
+    fill = "Rank"
+  ) +
+  theme_minimal(base_size = 14)
+
+data_clean <- data_clean %>%
+  mutate(Age_group = cut(Age, breaks = c(15, 25, 35, 45, 55, 75)))
+
+ggplot(data_clean, aes(x = Age_group, fill = Rank)) +
+  geom_bar(position = "fill") +   # proportions
+  scale_y_continuous(labels = scales::percent_format()) +
+  labs(
+    title = "Proportion of Bakers by Rank and Age Group",
+    x = "Age Group",
+    y = "Proportion",
+    fill = "Rank"
+  ) +
+  theme_minimal(base_size = 14)
+
+```
+
 ::: {.callout-tip collapse="true" title="Hint: Proportional bar charts"}
 `geom_bar(position = "fill")` gives proportions instead of counts. Map `x = Gender` (or your age groups) and `fill = Rank`. For part (b), create age bins with something like `cut(Age, breaks = c(15, 25, 35, 45, 55, 75))` inside a `mutate()` before plotting.
 :::
@@ -419,11 +459,63 @@ Fit the following models using `clm()` from the `ordinal` package:
 -   **Model 2:** `Rank ~ Gender + Age`
 -   **Model 3:** `Rank ~ Gender * Age`
 
+
+```{r}
+library(ordinal)
+
+# Model 0: Intercept
+model0 <- clm(Rank ~ 1, data = data_clean)
+
+# Model 1: Gender as predictor
+model1 <- clm(Rank ~ Gender, data = data_clean)
+
+# Model 2: Gender + Age
+model2 <- clm(Rank ~ Gender + Age, data = data_clean)
+
+# Model 3: Gender * Age
+model3 <- clm(Rank ~ Gender * Age, data = data_clean)
+
+summary(model0)
+summary(model1)
+summary(model2)
+summary(model3)
+```
+
+```{r}
+levels(data_clean$Gender)
+model2$alpha
+```
 For Model 2:
 
-a)  Report the threshold estimates. What do they represent?
-b)  Exponentiate the coefficients. Interpret the odds ratio for `Age` in one sentence.
-c)  Using Model 2, what is the predicted probability of Rank 1 for a 30-year-old female? Use `predictions()` from the `marginaleffects` package.
+a)  Report the threshold estimates. What do they represent? See above for the report, they represent the cumulative log odds of being at or below that category when someone is female and age is 0.
+
+
+```{r}
+# Exponentiate all coefficients
+exp_coef <- exp(coef(model2))
+exp_coef
+```
+b)  Exponentiate the coefficients. Interpret the odds ratio for `Age` in one sentence. As age increases, the odds of finshing in a higher place slightly decrease.
+
+```{r}
+library(marginaleffects)
+newdata <- data.frame(
+  Gender = factor("F", levels = levels(data_clean$Gender)),
+  Age = 30
+)
+library(marginaleffects)
+
+preds <- predictions(
+  model2,
+  newdata = newdata,
+  type = "prob",
+  summary = FALSE
+)
+
+preds
+```
+
+c)  Using Model 2, what is the predicted probability of Rank 1 for a 30-year-old female? Use `predictions()` from the `marginaleffects` package. Approximately .35.
 
 ::: {.callout-tip collapse="true" title="Hint: Interpreting thresholds"}
 The thresholds are the log-cumulative-odds of $P(Y \leq k)$ when all predictors are zero. They define the baseline distribution — where the cuts fall before any predictor shifts the distribution.
@@ -443,7 +535,11 @@ m3 <- clm(Rank ~ Gender * Age, data = gb)
 
 ### Question 5.1 {.unnumbered}
 
-Use `anova()` to compare Model 2 (no interaction) with Model 3 (interaction). Is the interaction warranted?
+Use `anova()` to compare Model 2 (no interaction) with Model 3 (interaction). Is the interaction warranted? Yes, because the output shows a significant interaction.
+
+```{r}
+anova(model2, model3)
+```
 
 ::: {.callout-tip collapse="true" title="Hint: What is anova() doing here?"}
 Each model's parameters are estimated by maximizing its likelihood function, finding the parameter values that make the observed data as probable as possible. `anova()` performs a likelihood ratio test. It computes:
@@ -456,6 +552,21 @@ This statistic follows a chi-square distribution. A significant p-value means th
 ### Question 5.2 {.unnumbered}
 
 Create a publication-quality comparison table of all four models using `modelsummary()`. Exponentiate the coefficients so they display as odds ratios.
+
+```{r}
+models <- list(
+  "Model 0: Intercept"      = model0,
+  "Model 1: Gender"         = model1,
+  "Model 2: Gender + Age"   = model2,
+  "Model 3: Gender × Age"   = model3
+)
+modelsummary(
+  models,
+  exponentiate = TRUE,
+  statistic = "({std.error})",
+  stars = TRUE
+)
+```
 
 ::: {.callout-tip collapse="true" title="Hint"}
 Put all four models in a named list: `list("Intercept only" = m0, "Gender" = m1, "Gender + Age" = m2, "Gender × Age" = m3)`. Pass it to `modelsummary()` with `exponentiate = TRUE` to display odds ratios and `stars = TRUE` to add significance stars.
@@ -479,15 +590,42 @@ predictions(m2,
   kable(digits = 3, caption = "Predicted P(Rank) for a 30-year-old female")
 ```
 
+```{r}
+#| code-fold: false
+
+# Predicted probabilities for a 25-year-old male
+predictions(m2, 
+            newdata = datagrid(Gender = "M", Age = 25),
+            type = "prob") %>%
+  kable(digits = 3, caption = "Predicted P(Rank) for a 25-year-old male")
+# Predicted probabilities for a 25-year-old female
+predictions(m2, 
+            newdata = datagrid(Gender = "F", Age = 25),
+            type = "prob") %>%
+  kable(digits = 3, caption = "Predicted P(Rank) for a 25-year-old female")
+```
 ### Question 6.1 {.unnumbered}
 
-Compare the predicted probabilities for a 25-year-old female vs. a 25-year-old male. Which gender has a higher predicted probability of Rank 1?
+Compare the predicted probabilities for a 25-year-old female vs. a 25-year-old male. Which gender has a higher predicted probability of Rank 1? According to the above two tables, a female has a higher probability at age 25. 
 
 ### Exercise 6.2: Verify by hand {.unnumbered}
 
 Compute the predicted probability of Rank 3 for a 25-year-old female using the formula:
 
 $$P(Y \leq k) = \text{plogis}(\alpha_k - \beta_1 X_1 - \beta_2 X_2)$$
+```{r}
+alpha_3 <- -0.6004965
+beta_gender <- coef(m2)["GenderM"]   
+beta_age <- coef(m2)["Age"]          
+eta_3 <- alpha_3 - (beta_gender * 0 + beta_age * 25)
+p_rank_le_3 <- plogis(eta_3)
+alpha_2 <- 0.8048225
+eta_2 <- alpha_2 - (beta_gender * 0 + beta_age * 25)
+p_rank_le_2 <- plogis(eta_2)
+# Probability of exactly Rank 3
+p_rank_3 <- p_rank_le_2 - p_rank_le_3
+print(p_rank_3)
+```
 
 Use the threshold and coefficient values from `coef(m2)`. Confirm that your manually calculated value matches the model output.
 
@@ -522,11 +660,22 @@ avg_comparisons(m2, variables = "Gender", type = "prob") %>%
 
 **Interpretation example:** *"Switching from female to male changes the probability of achieving Rank 1 by \[estimate\] percentage points, on average. This means males are \[more/less\] likely to finish first in the technical challenge than females."*
 
+```{r}
+#| code-fold: false
+
+avg_comparisons(m2, variables = "Age", type = "prob") %>%
+  kable(digits = 3, caption = "Average marginal effect of Age on each rank")
+
+
+```
+
+**Interpretation**"Each year of age increases the probability of being rank 1 by .1% points, though this is a tiny effect.
+
 ### Question 7.1 {.unnumbered}
 
 Compute the average marginal effect of `Age` on each rank category using `avg_comparisons()`.
 
-Translate the marginal effect for **Rank 1** into a sentence that a non-statistician would understand.
+Translate the marginal effect for **Rank 1** into a sentence that a non-statistician would understand. (See Above)
 
 ------------------------------------------------------------------------
 
@@ -546,7 +695,10 @@ emmeans(m2, ~ Gender, mode = "prob") %>%
 ### Question 8.1 {.unnumbered}
 
 Use `ggemmeans()` from the `ggeffects` package to plot predicted probabilities across Age, colored by Gender. The output should show how the probability of each rank category changes with age for each gender.
-
+```{r}
+preds <- ggemmeans(m2, terms = c("Age", "Gender"))
+plot(preds)
+```
 ::: {.callout-tip collapse="true" title="Hint"}
 `ggemmeans(m2, terms = c("Age", "Gender"))` returns a data frame of predicted probabilities. You can pipe it directly to `plot()` for a quick visualization, or use the returned data with `ggplot()` for more control over the appearance.
 :::
@@ -568,16 +720,46 @@ Use the Brant test to check this assumption. State your conclusion.
 ```{r}
 #| code-fold: false
 m2_polr <- polr(Rank ~ Gender + Age, data = gb)
+m2_polr
+brant.test(m2_polr)
+#The Brant test is not statistically significant (p = 0.83), so the proportional odds assumption appears to hold for both Gender and Age.
 ```
 
 ### Question 9.2: Surrogate residuals {.unnumbered}
 
 Use the `sure` package to create a QQ plot of surrogate residuals. Does the latent normality assumption appear to hold?
 
+```{r}
+res <- surrogate(m2)
+
+# QQ plot
+sr <- surrogate(m2)
+qqnorm(sr)
+qqline(sr, col = "red")
+
+#Normality appears to hold given that the QQ plot is close to the expected diagonal line.
+```
+
 ------------------------------------------------------------------------
 
 # Part 10: Write-Up
 
+
+```{r}
+nobs(m2)
+summary(m2)
+```
+
+```{r}
+OR <- exp(coef(m2))
+
+CI <- exp(confint(m2))
+
+OR
+CI
+brant.test(m2_polr)
+avg_comparisons(m2, variables = "Age", type = "prob")
+```
 ### Question 10.1 {.unnumbered}
 
 Write a **1-paragraph results section** for your final model. Your paragraph must include:
@@ -590,6 +772,7 @@ Write a **1-paragraph results section** for your final model. Your paragraph mus
 
 ::: {.callout-warning collapse="true" title="Example write-up"}
 *We used a cumulative logit model (proportional odds) to predict technical rank (1st, 2nd, 3rd) from gender and age (N = \[n\]). A Brant test supported the proportional odds assumption (χ² = \[value\], p = \[value\]). Gender was \[not\] a significant predictor of rank (OR = \[value\], 95% CI \[\[lower\], \[upper\]\], p = \[value\]). Each additional year of age was associated with \[an increase/decrease\] in the odds of achieving a better rank (OR = \[value\], 95% CI \[\[lower\], \[upper\]\]). In terms of predicted probabilities, switching from female to male \[increased/decreased\] the probability of achieving rank 1 by approximately \[X\] percentage points.*
+We used a cumulative logit model (proportional odds) to predict technical rank (1st, 2nd, 3rd) from gender and age (N = 309). A Brant test supported the proportional odds assumption (χ² = 0.37, df = 2, p = 0.83). Gender was not a significant predictor of rank (OR = 0.83, 95% CI [0.55, 1.25], p = 0.365). Each additional year of age was associated with a slight increase in the odds of achieving a better rank (OR = 1.01, 95% CI [0.99, 1.02]). In terms of predicted probabilities, each additional year of age increased the probability of achieving rank 1 by approximately 0.12 percentage points. 
 :::
 
 ------------------------------------------------------------------------
