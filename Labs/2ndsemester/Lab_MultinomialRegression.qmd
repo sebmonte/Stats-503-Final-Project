@@ -353,7 +353,7 @@ ggemmeans(final_model, terms = c("ppage_centered")) %>%
   scale_fill_manual(
     name = NULL,
     values = c("always" = "#F6B533", "sporadic" = "#D07EA2", "rarely/never" = "#9854F7"),
-    labels = c("RARELY OR NEVER VOTE    ", "SOMETIMES VOTE    ", "ALMOST ALWAYS VOTE    "),
+    labels = c("RARELY OR NEVER VOTE", "SOMETIMES VOTE", "ALMOST ALWAYS VOTE"),
     breaks = c("rarely/never", "sporadic", "always")
   ) +
   theme_minimal()
