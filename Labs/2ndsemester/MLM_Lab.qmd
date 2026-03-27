@@ -480,9 +480,19 @@ Functions like `table()` and `count()` will likely be useful here.
 
 ```{r}
 #ENTER YOUR ATTEMPT HERE:
-
-
-```
+n_distinct(efrep$PID) #30 participants total
+#Wasn't sure how to check the second easily
+efrep |>
+  count(PID) |>
+  summarise(
+    mean_trials = mean(n),
+    min_trials  = min(n)
+  ) #Mean = 12, minimum = 10
+efrep |>
+  group_by(PID) |>
+  summarise(n_audio_types = n_distinct(audio)) |>
+  count(n_audio_types) #Everyone has some kind of audio type
+``` 
 
 
 ::: {.callout-tip collapse="true"}
@@ -566,7 +576,7 @@ There are plenty of other ways (e.g., you could use combinations of `group_by()`
 :::
 
 ```{r}
-#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
+#Not exactly, I wasn't sure how to do the second operation and I liked using table to easily visualize the differences between subjects here.
 
 
 ```
@@ -587,9 +597,15 @@ Consider the following questions about the study:
 ```{r}
 #ENTER YOUR ATTEMPT HERE:
 
+#The test scores for executive functioning
+#We are seeking to investigate how different types of audio interfaces affect this, and then the effect of noise cancelling headphones
+#Trials
+#Participants (repeated measures for each)
+#Each participant hears different sorts of audio
+#Not sure
 
 ```
-
+### 
 
 ::: {.callout-tip collapse="true"}
 #### Solution
@@ -609,7 +625,7 @@ Consider the following questions about the study:
 :::
 
 ```{r}
-#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
+#I wasn't sure what the between group differences were, but checking the answer and the dataset it was the sort of device they used to listen.
 
 
 ```
@@ -628,7 +644,11 @@ Check back to the Multiple Regression materials for a refresher on setting facto
 
 ```{r}
 #ENTER YOUR ATTEMPT HERE:
-
+efdat <- efdat |>
+  mutate(
+    audio = fct_relevel(factor(audio), "no_audio"),
+    headphones = fct_relevel(factor(headphones), "S")
+  )
 
 ```
 
@@ -646,7 +666,7 @@ efdat <- efdat |>
 :::
 
 ```{r}
-#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
+No difference
 
 
 ```
@@ -678,7 +698,8 @@ For additional reading on multilevel models and how to fit them in R, see [Chapt
 
 ```{r}
 #ENTER YOUR ATTEMPT HERE:
-
+model <- lmer(SDMT ~ audio * (1 + headphones|PID), data = ef_music)
+#Upon reading below, I realized that we don't want to be grouping by headphones as it's also a variable of interest
 
 ```
 
@@ -761,7 +782,7 @@ bwplot(SDMT~audio|PID, data = efdat, scales=list(x=list(rot=90)))
 :::
 
 ```{r}
-#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
+#Yes I wasn't thinking about the fact that headphones are themselves a predictor. For what to group by, since audio exists for each person, we can see how it varies for each person and so we can use it as the grouping variable in the lmer model.
 
 
 ```
@@ -771,8 +792,6 @@ bwplot(SDMT~audio|PID, data = efdat, scales=list(x=list(rot=90)))
 We now have a model, but we don't have any p-values or confidence intervals or anything — i.e. we have no inferential criteria on which to draw conclusions. There are a whole load of different methods available for drawing inferences from multilevel models, which means it can be a bit of a never-ending rabbit hole. For now, we'll just use the 'quick and easy' approach provided by the **lmerTest** package seen in the lectures.
 
 Using the **lmerTest** package, re-fit your model, and you should now get some p-values!
-
-
 ::: {.callout-tip collapse="true"}
 #### Hints
 
@@ -803,7 +822,8 @@ SATmodcomp(largeModel = sdmt_mod, smallModel = sdmt_res)
 
 
 ```{r}
-#ENTER YOUR ATTEMPT HERE:
+library(lmerTest)
+summary(model)
 
 
 ```
@@ -821,7 +841,7 @@ summary(sdmt_mod)
 :::
 
 ```{r}
-#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
+#Yes I wasn't thinking about the fact that headphones are themselves a predictor. For what to group by, since audio exists for each person, we can see how it varies for each person and so we can use it as the grouping variable in the lmer model. We can see how mine wouldn't work because the model failed to converge and gave us a warning.
 
 
 ```
@@ -850,7 +870,17 @@ For additional reading, see [Chapter 2: Visualising Models](https://uoepsy.githu
 
 ```{r}
 #ENTER YOUR ATTEMPT HERE:
+library(effects)
 
+effect(term = "audio*headphones", mod = sdmt_mod) |>
+  as.data.frame() |>
+  ggplot(aes(x = audio, y = fit, color = headphones, group = headphones)) +
+  geom_point() +
+  geom_line() +
+  geom_errorbar(aes(ymin = lower, ymax = upper), 
+                width = 0.1,
+                position = position_dodge(width = 0.3)) +
+  labs(y = "SDMT scores")
 
 ```
 
@@ -869,7 +899,7 @@ effect(term = "audio*headphones", mod = sdmt_mod) |>
 :::
 
 ```{r}
-#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
+#Similar visualization, but I do think the one on the bottom is cleaner as there's no real reason to add the lines between points here.
 
 
 ```
@@ -896,6 +926,14 @@ The aim in writing a statistical report should be that a reader is able to more 
 ```{r}
 #ENTER YOUR ATTEMPT HERE:
 
+broom.mixed::tidy(sdmt_mod, effects = "fixed")
+confint(sdmt_mod, method = "Wald")
+effect("audio*headphones", sdmt_mod) |> as.data.frame()
+
+#The study in question examined how different sorts of audio interference affects executive function. The data set included executive functioning scores (SDMT), the type of headphones that were used (headphones), and the type of audio (audio). To evaluate this question, we modeled SDMT scores as a function of the headphones that were used, the type of audio listened to, and their interactions. We were specifically interested in whether the type of headphone used determined the interference of audio on SDMT. We used a model with random effects for the type of audio and intercepts for each participant, because each participant completed multiple trials and we expected them to differ in baseline SDMT and how audio affected them.
+
+#The estimated baseline SDMT score (no audio, speakers) was 33.26 (SE = 1.99, 95% CI [29.35, 37.16]). Compared to no audio, music was associated with a significant decrease in SDMT scores (b = -8.02, SE = 1.41, t(27.59) = -5.68, p < .001), while white noise showed no significant effect (b = -0.03, SE = 1.45, t(26.33) = -0.02, p = .983).
+#Participants using noise-cancelling headphones scored significantly higher than those using speakers in the no audio condition (b = 6.85, SE = 2.81, t(28.19) = 2.44, p = .021). The interaction between white noise and headphones was significant (b = 8.02, SE = 2.04, t(26.46) = 3.92, p < .001), indicating that white noise was associated with higher SDMT for headphone users (estimated SDMT = 48.11, 95% CI [44.16, 52.05]) compared to no audio. The interaction between music and headphones was not significant (b = -3.59, SE = 2.00, t(27.94) = -1.79, p = .084).
 
 ```
 
@@ -953,7 +991,9 @@ sjPlot::tab_model(sdmt_mod,df.method="satterthwaite",
 :::
 
 ```{r}
-#DID YOUR ANSWER DIFFER FROM THE SOLUTION? IF SO, HOW?
+#There were some details in the writeup answer that would have been good to include in mind, including mention of the software/packages I used, the model comparison, and the SDs for random effects and their correlations. The closing interpretation paragraph was also nice, for a full-fledged report this would be bettter
+
+#Also, I wanted to comment that I thought this approach to labs was especially useful compared to other labs, particularly the part where we report answers and compare them to yours. I felt more comfortable making mistakes and then being able to check my interpretations immediately with feedback. I hope we do more like these!
 
 
 ```
